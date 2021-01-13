@@ -1,93 +1,99 @@
 #include <bits/stdc++.h>
 
-using namespace std;
+std::istream &fp = std::cin;
 
-bool compare(const pair<int, int> &p1, const pair<int, int> &p2){
-  return p1.second < p2.second;
-}
+struct interval {
+  long a;
+  long b;
+  
+  bool operator<(const interval &other) {
+    return b < other.b;
+  }
+};
 
-bool compare_checker(const tuple<int, int, int> &t1, const tuple<int, int, int> &t2){
+struct inc_point {
+  long seg;
+  int inc;
+  long iv;
   
-  if(get<0>(t1) < get<0>(t2)) return get<1>(t1) > get<1>(t2);
-  return get<0>(t1) < get<0>(t2);
-}
+  bool operator<(const inc_point &other) {
+    return seg < other.seg;
+  }
+};
 
-int scheduling(const vector< pair<int, int> > &intervals, int m, pair<int, int> start){
+
+long interval_sched(const std::vector<interval> &ints, long start, long end) {
+  const long n = ints.size();
   
-  int a = start.first;
-  int b = start.second;
-  
-  int last = b;
-  int count = a != b;
-  
-  for(pair<int, int> interval : intervals){
-    if(interval.second >= m + a) break;
-    if(interval.first > last){
-      ++count;
-      last = interval.second;
-    }
+  long cnt = 0;
+  for (long i = 0; i < n; i++) {
+    const interval &iv = ints[i];
+    
+    if (iv.b > end) break;
+    if (iv.a < start) continue;
+    
+    start = iv.b + 1;
+    cnt++;
   }
   
-  return count;
-  
+  return cnt;
 }
 
 void testcase(){
-  int n, m; cin >> n >> m;
+  long n, m; fp >> n >> m;
+
+  std::vector<interval> ints;
+  for (int i = 0; i < n; i++) {
+    long a, b; fp >> a >> b;
+    
+    if (a > b) a -= m;
+    ints.push_back({ a, b });
+    ints.push_back({ a+m, b+m });
+  }
+
+  std::sort(ints.begin(), ints.end());
   
-  vector< pair<int, int> > jedies(n + 1);
-  vector< pair<int, int> > intervals;
-  vector< tuple<int, int, int> > checker;
-  
-  for(int i = 1; i <= n; ++i){
-    int a, b; cin >> a >> b;
-    
-    checker.push_back(make_tuple(a, 1, i));
-    checker.push_back(make_tuple(b, -1, i));
-    
-    if(a > b){
-      jedies[i] = {a - m, b};
-      intervals.push_back({a - m, b});
-      intervals.push_back({a, b + m});
-    } 
-    else{
-      jedies[i] = {a, b};
-      intervals.push_back({a, b});
-      intervals.push_back({a + m, b + m});
-    } 
-    
+  std::unordered_set<int> cur_ints;
+  for (int i = 0; i < n; i++) { const auto &it = ints[i];
+    if (it.a <= 1 && 1 <= it.b) cur_ints.insert(i);
   }
   
-  sort(intervals.begin(), intervals.end(), compare);
+  std::vector<inc_point> ps;
+  for (int i = 0; i < n; i++) {
+    const auto &it = ints[i];
+    
+    if (ints[i].a > 1) ps.push_back({ it.a, +1, i });
+    if (ints[i].b > 1) ps.push_back({ it.b+1, -1, i });
+  }
+
+  std::sort(ps.begin(), ps.end());
   
-  vector< pair<int, int> > starting;
-  //find the segment and the starting intervals
-  
-  sort(checker.begin(), checker.end(), compare_checker);
-  
-  int num_intervals = 0;
-  int segment = 0;
-  for(tuple<int, int, int> temp : checker){
-    if(num_intervals = 10)
+  long cur_seg = 1;
+  for (auto &icp : ps) {
+    cur_seg = icp.seg;
+
+    if (icp.inc > 0) cur_ints.insert(icp.iv);
+    else cur_ints.erase(icp.iv);
+    
+    if (cur_ints.size() <= 10) break;
   }
   
-  int max = 0;
-  for(pair<int, int> start : starting){
-    int num = scheduling(intervals, m, start);
-    if(num > max) max = num;
+  // (cur_seg + 1) ... (cur_seg + m - 1)
+  long max_ints = interval_sched(ints, cur_seg + 1, cur_seg + m - 1);
+  for (auto &si : cur_ints) {
+    const auto &starting_int = ints[si];
+    
+    // (starting_int.b + 1) ... (starting_int.a + m - 1)
+    max_ints = std::max(max_ints, 1 + interval_sched(ints, starting_int.b + 1, starting_int.a + m - 1));
   }
   
-  cout << max << "\n";
-  
+  std::cout << max_ints << "\n";
 }
 
-int main(int argc, const char *argv[]){
-  ios_base::sync_with_stdio(false);
-  cin.tie(0); cout.tie(0);
-  
-  int t; cin >> t;
-  
+int main(int argc, const char *argv[]) {
+  std::cin.sync_with_stdio(false);
+  fp.tie(0);
+  int t; fp >> t;
   while(t--) testcase();
-  
   return 0;
 }
