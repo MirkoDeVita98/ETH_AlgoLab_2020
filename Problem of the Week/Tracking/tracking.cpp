@@ -2,83 +2,53 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 
+typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS,
+  boost::no_property, boost::property<boost::edge_weight_t, int> >      weighted_graph;
+typedef boost::property_map<weighted_graph, boost::edge_weight_t>::type weight_map;
+typedef boost::graph_traits<weighted_graph>::edge_descriptor            edge_desc;
+typedef boost::graph_traits<weighted_graph>::vertex_descriptor          vertex_desc;
 
-using namespace std;
+int dijkstra_dist(const weighted_graph &G, int s, int t) {
+  int n = boost::num_vertices(G);
+  std::vector<int> dist_map(n);
 
-typedef boost::adjacency_list < boost::vecS, boost::vecS, boost::undirectedS,
-    boost::no_property, boost::property < boost::edge_weight_t, long > > UGraph;
-typedef boost::property_map < UGraph, boost::edge_weight_t >::type UWeightMap;
-typedef boost::graph_traits < UGraph >::edge_descriptor UEdge;
-typedef boost::graph_traits < UGraph >::vertex_descriptor UVertex;
+  boost::dijkstra_shortest_paths(G, s,
+    boost::distance_map(boost::make_iterator_property_map(
+      dist_map.begin(), boost::get(boost::vertex_index, G))));
 
+  return dist_map[t];
+}
+
+std::istream & fp = std::cin;
+
+#define state(u, j) (((j)*(n)) + u)
 
 void testcase(){
-  int n,m,k,x,y; cin >> n >> m >> k >> x >> y;
-  
-  struct MyEdge{
-    int a,b,c;
-    MyEdge(int a = 0, int b = 0, int c = 0) : a(a), b(b), c(c) {}
-  };
-  
-  UGraph G(n*(k + 1)); 
-  int nv = boost::num_vertices(G);
-  y += n*k; 
-  UWeightMap wmap = boost::get(boost::edge_weight, G);
-  vector<MyEdge> riveredges;
+  int n, m, k, x ,y; fp >> n >> m >> k >> x >> y;
+  weighted_graph G(n*(k+ 1));
+  weight_map weights = boost::get(boost::edge_weight, G);
   
   for(int i = 0; i < m; ++i){
-    int a,b,c,d; cin >> a >> b >> c >> d;
-    if(d) riveredges.push_back(MyEdge(a,b,c));
-    
-    for(int j = 0; j <= k; ++j){
-      int va = j*n + a;
-      int vb = j*n + b;
-      UEdge e; bool success;
-      boost::tie(e, success) = boost::add_edge(va, vb, G);
-      wmap[e] = c;
-    }
-  }
-  
-  int re = riveredges.size();
-  
-  for(int i = 0; i < re; ++i){
-    MyEdge me = riveredges[i];
-    
+    int a, b, c, d; fp >> a >> b >> c >> d;
     for(int j = 0; j < k; ++j){
-      int va = j*n + me.a;
-      int vb = (j + 1)*n + me.b;
-      
-      //we add the edge that skip the repetition
-      UEdge e; bool success;
-      boost::tie(e, success) = boost::add_edge(va, vb, G);
-      wmap[e] = me.c;
-      
-      //and the edge for the repetition
-      
-      int var = va + n;
-      int vbr = vb - n;
-      boost::tie(e, success) = boost::add_edge(var, vbr, G);
-      wmap[e] = me.c;
-      
+      edge_desc e = boost::add_edge(state(a, j), state(b, j + d), G).first;
+      weights[e] = c;
+      e = boost::add_edge(state(b, j), state(a, j + d), G).first;
+      weights[e] = c;
     }
+    edge_desc e = boost::add_edge(state(a, k), state(b, k), G).first;
+    weights[e] = c;
+    e = boost::add_edge(state(b, k), state(a, k), G).first;
+    weights[e] = c;
   }
   
-  std::vector<UVertex> p(nv);
-  std::vector<long> d(nv);
-  boost::dijkstra_shortest_paths(G, x,
-    predecessor_map(boost::make_iterator_property_map(p.begin(), boost::get(boost::vertex_index, G))).
-    distance_map(boost::make_iterator_property_map(d.begin(), boost::get(boost::vertex_index, G))));
-
-  cout << d[y] << "\n";
-  
+  std::cout << dijkstra_dist(G, x, state(y, k)) << "\n";
 }
 
 int main(int argc, const char * argv[]){
-  ios_base::sync_with_stdio(false);
-  cin.tie(0); cout.tie(0);
-  
-  int t; cin >> t;
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0);
+  int t; fp >> t;
   while(t--) testcase();
-  
   return 0;
 }
