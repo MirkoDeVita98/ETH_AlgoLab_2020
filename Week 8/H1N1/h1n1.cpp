@@ -1,4 +1,86 @@
+//two approaches: bgl and only CGAL with distances stored in face -> info()
+
 #include <bits/stdc++.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h> 
+#include <CGAL/Delaunay_triangulation_2.h>
+#include <CGAL/Triangulation_face_base_with_info_2.h>
+
+typedef CGAL::Exact_predicates_inexact_constructions_kernel K; 
+typedef CGAL::Triangulation_vertex_base_2<K> Vb;
+typedef CGAL::Triangulation_face_base_with_info_2<K::FT,K> Fb; 
+typedef CGAL::Triangulation_data_structure_2<Vb,Fb> Tds; 
+typedef CGAL::Delaunay_triangulation_2<K,Tds> Triangulation;
+typedef Triangulation::Face_handle Face_handle;
+
+typedef K::Point_2 P;
+
+std::istream & fp = std::cin;
+
+void testcase(int n){
+  std::vector<P> pts; 
+  pts.reserve(n);
+  for(int i = 0; i < n; ++i) {
+    int x, y;
+    fp >> x >> y; pts.push_back(P(x, y));
+  }
+  Triangulation t; 
+  t.insert(pts.begin(), pts.end());
+  
+  std::priority_queue< std::pair<K::FT, Face_handle> > pq;
+  
+  for (auto f = t.all_faces_begin(); f != t.all_faces_end(); ++f){
+    f -> info() = t.is_infinite(f) ? std::numeric_limits<long>::max() : 0;
+    pq.push({f -> info(), f});
+  }
+  
+  while(!pq.empty()){
+    Face_handle u = pq.top().second;
+    K::FT w = pq.top().first;
+    pq.pop();
+    
+    if(w < u -> info()) continue;
+    
+    for(int i = 0; i < 3; ++i){
+      Face_handle v = u -> neighbor(i);
+      K::FT link = t.segment(u, i).squared_length();
+      K::FT new_w = CGAL::min(link, u -> info());
+      if(new_w > v -> info()){
+        v -> info() = new_w;
+        pq.push({new_w, v});
+      }
+    }
+  }
+  
+  int m; fp >> m;
+  
+  while(m--){
+    int x, y; fp >> x >> y;
+    long d; fp >> d;
+    
+    P p(x, y);
+    K::FT dist = CGAL::squared_distance(t.nearest_vertex(p)->point(), p);
+    
+    if(dist < d){
+      std::cout << "n";
+      continue;
+    } 
+    Face_handle start = t.locate(p);
+    if(start -> info() >= 4*d) std::cout << "y";
+    else std::cout << "n";
+  }
+  
+  std::cout << "\n";
+}
+
+int main(int argc, const char * argv[]){
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0);
+  int n;
+  while(fp >> n && n) testcase(n);
+  return 0;
+}
+
+/*#include <bits/stdc++.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h> 
 #include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
@@ -141,4 +223,4 @@ int main(int argc, const char* argv[]){
   
   int n; 
   while(fp >> n && n) testcase(n);
-}
+}*/
