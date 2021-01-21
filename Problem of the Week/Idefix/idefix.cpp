@@ -1,58 +1,43 @@
 #include <bits/stdc++.h>
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h> 
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/Triangulation_vertex_base_with_info_2.h>
-#include <CGAL/squared_distance_2.h>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/connected_components.hpp>
+#include <CGAL/Triangulation_face_base_2.h>
 #include <boost/pending/disjoint_sets.hpp>
 
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> graph;
+typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+typedef CGAL::Triangulation_vertex_base_with_info_2<int,K>   Vb;
+typedef CGAL::Triangulation_face_base_2<K>                     Fb;
+typedef CGAL::Triangulation_data_structure_2<Vb,Fb>            Tds;
+typedef CGAL::Delaunay_triangulation_2<K,Tds>                  Delaunay;
+typedef Delaunay::Point                                   Point;
+typedef std::tuple<int,int,long> Edge;
+typedef std::vector<Edge> EdgeV;
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel         K;
-typedef CGAL::Triangulation_vertex_base_with_info_2<unsigned, K>    Vb;
-typedef CGAL::Triangulation_data_structure_2<Vb>                    Tds;
-typedef CGAL::Delaunay_triangulation_2<K, Tds>                      Triangulation;
-typedef Triangulation::Point                                        Point;
-typedef Triangulation::Vertex_handle                                Vertex_handle;
-typedef Triangulation::Finite_faces_iterator                        Face_iterator;
+std::istream & fp = std::cin;
 
-typedef std::tuple<K::FT, int, int> Edge;
-
-std::istream & fp= std::cin;
-
-int k_bones(const Triangulation & t,const long & s, std::priority_queue<Edge> pq, int n, const std::vector<std::vector<long>> & bones_to_check){
-
-  boost::disjoint_sets_with_storage<> uf(n);
-  std::vector<int> bones(n, 0);
+int k_bones(const EdgeV & edges,const long & s, const std::vector< std::vector<long> > & bones){
+  int n = bones.size();
+  std::vector<int> bones_in_component(n, 0);
+  
   int max_bones = 0;
   for(int i = 0; i < n; ++i){
-    
-    auto pointer = upper_bound(bones_to_check[i].begin(), bones_to_check[i].end(), s/4);
-    int new_bones = (pointer==bones_to_check[i].end()) ? bones_to_check[i].size() : pointer-bones_to_check[i].begin();
-    
-    max_bones = std::max(max_bones, bones[i] = new_bones);
+    auto up = upper_bound(bones[i].begin(), bones[i].end(), s);
+    int starting_bones = (up == bones[i].end()) ? bones[i].size() : up - bones[i].begin();
+    max_bones = std::max(max_bones, bones_in_component[i] = starting_bones);
   }
   
-  while(!pq.empty()){
-    Edge e = pq.top();
-    pq.pop();
-    
-    K::FT d = std::get<0>(e);
-    int u = std::get<1>(e);
-    int v = std::get<2>(e);
-    
-    if(s >= d){
-      if(uf.find_set(u) != uf.find_set(v)){
-        int num_bones_u = bones[uf.find_set(u)];
-        int num_bones_v = bones[uf.find_set(v)];
-        uf.union_set(u, v);
-        max_bones = std::max(max_bones, 
-                        bones[uf.find_set(u)] = num_bones_u + num_bones_v
-                      );
-      }
+  boost::disjoint_sets_with_storage<> uf(n);
+  int n_components = n;
+  for (EdgeV::const_iterator e = edges.begin(); e != edges.end() && get<2>(*e) <= s; ++e) {
+    int c1 = uf.find_set(std::get<0>(*e));
+    int c2 = uf.find_set(std::get<1>(*e));
+    if (c1 != c2) {
+      int sum_of_bones = bones_in_component[c1] + bones_in_component[c2];
+      uf.link(c1, c2);
+      max_bones = std::max(max_bones, bones_in_component[uf.find_set(c1)] = sum_of_bones);
+      if (--n_components == 1) break;
     }
-  
   }
   
   return max_bones;
@@ -63,60 +48,56 @@ void testcase(){
   long s; fp >> s;
   int k; fp >> k;
   
-  std::vector<std::pair<Point,unsigned>> pts; 
-  pts.reserve(n);
+  typedef std::pair<K::Point_2,int> IPoint;
+  std::vector<IPoint> points;
+  points.reserve(n);
   for (int i = 0; i < n; ++i) {
     int x, y;
-    fp >> x >> y; 
-    pts.push_back(std::make_pair(Point(x,y),i));
+    std::cin >> x >> y;
+    points.emplace_back(K::Point_2(x, y), i);
   }
+  Delaunay t;
+  t.insert(points.begin(), points.end());
   
-  Triangulation t; 
-  t.insert(pts.begin(), pts.end());
-  
-  graph G(n);
-  
-  std::vector<std::vector<long>> bones_to_check(n);
-  std::vector<long> tries;
-  
+  std::vector< long > tries;
+  std::vector< std::vector<long> > bones(n);
   for(int i = 0; i < m; ++i){
     int x, y;
-    fp >> x >> y;
-    Point p(x, y);
-    Triangulation::Vertex_handle v = t.nearest_vertex(p);
-    K::FT d = CGAL::squared_distance(v -> point(), p);
-    tries.push_back(4 * d);
-    bones_to_check[v -> info()].push_back(d); 
+    std::cin >> x >> y;
+    Point bone(x, y);
+    auto tree = t.nearest_vertex(bone);
+    long dist = 4*CGAL::squared_distance(tree -> point(), bone);
+    tries.push_back(dist);
+    bones[tree -> info()].push_back(dist);
   }
   
-   for(int i = 0; i < n; i++) sort(bones_to_check[i].begin(), bones_to_check[i].end());
-   
-  std::priority_queue<Edge> pq;
+  for(int i = 0; i < n; ++i) std::sort(bones[i].begin(), bones[i].end());
+  
+  EdgeV edges;
+  edges.reserve(3*n); 
   for (auto e = t.finite_edges_begin(); e != t.finite_edges_end(); ++e) {
-    int u = e->first->vertex((e->second+1)%3)->info();
-    int v = e->first->vertex((e->second+2)%3)->info();
-    
-    auto d = t.segment(e).squared_length();
-    tries.push_back(d);
-    pq.push(std::make_tuple(d, u, v));
+    int i1 = e->first->vertex((e->second+1)%3)->info();
+    int i2 = e->first->vertex((e->second+2)%3)->info();
+    if (i1 > i2) std::swap(i1, i2);
+    edges.emplace_back(i1, i2, t.segment(e).squared_length());
+    tries.push_back(t.segment(e).squared_length());
+  }
+  sort(edges.begin(), edges.end(),
+      [](const Edge& e1, const Edge& e2) -> bool {
+        return std::get<2>(e1) < std::get<2>(e2);
+            });
+  
+  int L = 0;
+  int R = tries.size() - 1;
+  std::sort(tries.begin(), tries.end());
+  
+  while(L < R){
+    int mid = (L + R) / 2;
+    if(k_bones(edges, tries[mid], bones) < k) L = mid + 1;
+    else R = mid;
   }
   
-  std::sort(tries.begin(), tries.end()); 
-  
-  std::cout << k_bones(t, s, pq, n, bones_to_check) << " ";
-  
-  int left = 0;
-  int right = tries.size() - 1;
-  
-  while (left < right) {
-    int mid = (left + right)/2;
-    
-    if(k_bones(t, tries[mid], pq, n, bones_to_check) < k) left = mid + 1;
-    else right = mid;
-    
-  }
-  
-  std::cout << tries[left] << std::endl;
+  std::cout << k_bones(edges, s, bones) << " " << tries[L] << "\n";
 }
 
 int main(int argc, const char * argv[]){
@@ -124,142 +105,8 @@ int main(int argc, const char * argv[]){
   fp.tie(0);
   int t; fp >> t;
   while(t--) testcase();
+  return 0;
 }
-
-/*#include <bits/stdc++.h>
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h> 
-#include <CGAL/Delaunay_triangulation_2.h>
-#include <CGAL/Triangulation_vertex_base_with_info_2.h>
-#include <CGAL/squared_distance_2.h>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/connected_components.hpp>
-#include <boost/pending/disjoint_sets.hpp>
-
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> graph;
-
-typedef CGAL::Exact_predicates_inexact_constructions_kernel         K;
-typedef CGAL::Triangulation_vertex_base_with_info_2<unsigned, K>    Vb;
-typedef CGAL::Triangulation_data_structure_2<Vb>                    Tds;
-typedef CGAL::Delaunay_triangulation_2<K, Tds>                      Triangulation;
-typedef Triangulation::Point                                        Point;
-typedef Triangulation::Vertex_handle                                Vertex_handle;
-typedef Triangulation::Finite_faces_iterator                        Face_iterator;
-
-typedef std::tuple<K::FT, int, int> Edge;
-
-std::istream & fp = std::cin;
-
-long floor_to_double(const K::FT& x) {
-  double a = std::floor(CGAL::to_double(x)); 
-  while (a > x) a -= 1;
-  while (a + 1 <= x) a += 1;
-  return (long)a;
-}
-
-int union_find(const Triangulation & t, int n, int m,const K::FT & s,const std::vector<Point> & bones_locations){
-  boost::disjoint_sets_with_storage<> uf(n);
-  std::vector<int> bones(n, 0);
-  
-  for(int i = 0; i < m; ++i){
-    Point p = bones_locations[i];
-    Triangulation::Vertex_handle v = t.nearest_vertex(p);
-    K::FT d = 4 * CGAL::squared_distance(v -> point(), p);
-    if(d <= s) bones[v -> info()] += 1;
-  }
-  
-  
-  int max_bones = 0;  
-  
-  for(int i = 0; i < m; ++i) max_bones = std::max(max_bones, bones[i]);
-   
-  
-  std::priority_queue<Edge> pq;
-  for (auto e = t.finite_edges_begin(); e != t.finite_edges_end(); ++e) {
-    int u = e->first->vertex((e->second+1)%3)->info();
-    int v = e->first->vertex((e->second+2)%3)->info();
-    
-    auto d = t.segment(e).squared_length();
-    
-    pq.push(std::make_tuple(d, u, v));
-    
-  }
-  
-  
-  while(!pq.empty()){
-    Edge e = pq.top();
-    pq.pop();
-    
-    K::FT d = std::get<0>(e);
-    int u = std::get<1>(e);
-    int v = std::get<2>(e);
-    
-    if(s >= d){
-      if(uf.find_set(u) != uf.find_set(v)){
-        int num_bones_u = bones[uf.find_set(u)];
-        int num_bones_v = bones[uf.find_set(v)];
-        uf.union_set(u, v);
-        max_bones = std::max(max_bones, 
-                        bones[uf.find_set(u)] = num_bones_u + num_bones_v
-                      );
-      }
-    }
-  
-  }
-  
-  return max_bones;
-}
-
-long left_most_bin(const Triangulation & t, int n, int m, int k, const std::vector<Point> & bones_locations){
-  long L = 0;
-  long R = 1L << 51;
-  
-  while (L < R) {
-    long mid = (L + R)/2;
-    
-    if (union_find(t, n, m, mid, bones_locations) < k) {
-        L = mid + 1;
-    } else {
-        R = mid;
-    }
-  }
-
-  return L;
-}
-
-void testcase(){
-  int n, m; fp >> n >> m;
-  K::FT s; fp >> s;
-  int k; fp >> k;
-  
-  std::vector<std::pair<Point,unsigned>> pts; 
-  pts.reserve(n);
-  for (int i = 0; i < n; ++i) {
-    int x, y;
-    fp >> x >> y; 
-    pts.push_back(std::make_pair(Point(x,y),i));
-  }
-  
-  Triangulation t; 
-  t.insert(pts.begin(), pts.end());
-  
-  std::vector<Point> bones_locations;
-  for(int i = 0; i < m; ++i){
-    int x, y; fp >> x >> y;
-    Point p(x, y);
-    bones_locations.push_back(p);
-  }
-  
-  std::cout << union_find(t, n, m, s, bones_locations) << " " << left_most_bin(t, n, m, k, bones_locations) << "\n";
-  
-}
-
-int main(int argc, const char * argv[]){
-  std::ios_base::sync_with_stdio(false);
-  fp.tie(0);
-  
-  int t; fp >> t;
-  while(t--) testcase();
-}*/
 
 
 
