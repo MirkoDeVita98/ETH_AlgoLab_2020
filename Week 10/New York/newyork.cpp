@@ -1,110 +1,95 @@
 #include <bits/stdc++.h>
-#include <boost/graph/adjacency_list.hpp>
-
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS> graph;
-typedef boost::graph_traits < graph >::out_edge_iterator oe;
 
 std::istream & fp = std::cin;
+
+typedef std::pair<int, int> iPair;
+
+struct Critical_Point{
+  int h;
+  int parent = 0;
+  std::vector<int> r;
+};
 
 void testcase(){
   int n, m, k; fp >> n >> m >> k;
   
-  std::vector<int> h(n);
+  std::vector<Critical_Point> cpts(n);
   for(int i = 0; i < n; ++i){
-    fp >> h[i];
+    fp >> cpts[i].h;
   }
   
-  graph G(n);
-  std::vector<int> parent(n, 0);
-  
-  
-  for(int i = 0; i < n - 1; ++i){
+  for(int i = 1; i < n; ++i){
     int u, v; fp >> u >> v;
-    boost::add_edge(u, v, G);
-    parent[v] = u;
+    cpts[u].r.push_back(v);
+    cpts[v].parent = u; 
   }
   
-  std::stack<int> S;
-  std::set< std::pair<int, int> > T;
-  std::vector<bool> in_interval(n, false); 
+  std::stack<int> st;
+  std::set<iPair> T;
+  st.push(0);
   int interval = 0;
-  
-  S.push(0);
   int first = 0;
+  std::vector<bool> in_interval(n, false);
+  std::set<int> journey;
   
-  std::set<int> critical_points;
+  while(!st.empty()){
+    int u = st.top();
+    st.pop();
+    
+    in_interval[u] = true;
+    T.insert({cpts[u].h, u});
+    interval += 1;
+    
+    if(!T.empty() && interval == m && (T.rbegin() -> first - T.begin() -> first) <= k) journey.insert(first);
   
-  while(!S.empty()){
-    int v = S.top();
-    S.pop();
-      
-    in_interval[v] = true;
-    T.insert({h[v], v});
-    
-    
-    ++interval;
-    
-    
-    int max = T.empty() ? 0 : T.rbegin() -> first; 
-    int min = T.empty() ? 0 : T.begin() -> first; 
-    
-    if(!T.empty() && max - min <= k && interval == m) critical_points.insert(first);
-    
+    //set the new first
     if(interval == m){
+      interval -= 1;
+      T.erase({cpts[first].h, first});
       in_interval[first] = false;
-      T.erase({h[first], first});
-      --interval;
-      //update first
-      oe ei, ei_end;
-      for (boost::tie(ei, ei_end) = boost::out_edges(first, G); ei != ei_end; ++ei) {
-        int child = boost::target ( *ei, G);
-        if(in_interval[child]) first = child;
+      
+      for(int child : cpts[first].r){
+        if(in_interval[child]){
+          first = child;
+          break;
+        } 
       }
-      
-    }
-
-    bool leaf = true;
-    
-    oe ei, ei_end;
-    for (boost::tie(ei, ei_end) = boost::out_edges(v, G); ei != ei_end; ++ei) {
-      leaf = false;
-      S.push(boost::target (*ei, G));
     }
     
-    
-    if(leaf){
-      
-      while(!S.empty() && v != parent[S.top()]){
-        in_interval[v] = false;
-        T.erase({h[v], v});
-        if(!in_interval[parent[first]]){
-          in_interval[parent[first]] = true;
-          first = parent[first];
-          T.insert({h[first], first});
-          ++interval;
-        }
-        --interval;
-        v = parent[v];
-      }
-      
-    }
-    
+    //if not leaf add children to the stack
+    if(!cpts[u].r.empty()) for(int v : cpts[u].r) st.push(v);
+    //if leaf move th interval back and set the st.top() to last
+    else{
+      while(!st.empty() && u != cpts[st.top()].parent){
+        in_interval[u] = false;
+        T.erase({cpts[u].h, u});
         
+        //move the first back if necessary
+        if(!in_interval[cpts[first].parent]){
+          in_interval[cpts[first].parent] = true;
+          first = cpts[first].parent;
+          T.insert({cpts[first].h, first});
+          interval += 1;
+        }
+      
+        interval -= 1;
+        u = cpts[u].parent;
+      }
+    }
   }
   
-  if(!critical_points.empty()){
-    for(int critical : critical_points) std::cout << critical << " ";
+  if(!journey.empty()){
+    for(int start : journey) std::cout << start << " ";
   }
   else std::cout << "Abort mission";
   
   std::cout << "\n";
 }
 
-int main(int argc, const char* argv[]){
+int main(int argc, const char * argv[]){
   std::ios_base::sync_with_stdio(false);
   fp.tie(0);
   int t; fp >> t;
-  while(t--)
-    testcase();
-
+  while(t--) testcase();
+  return 0;
 }
