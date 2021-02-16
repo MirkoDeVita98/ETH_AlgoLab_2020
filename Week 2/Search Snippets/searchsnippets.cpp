@@ -1,55 +1,54 @@
 #include <bits/stdc++.h>
 
-using namespace std;
+std::istream & fp = std::cin;
+
+typedef std::pair<int, int> iPair;
+typedef std::vector<int> VI;
+typedef std::vector< VI > VII;
 
 void testcase(){
-  int n; cin >> n;
+  int n; fp >> n;
   
-  vector<int> m(n);
-  vector < vector<int> > p(n);
-  
-  
-  for(int i = 0; i < n; ++i) cin >> m[i];
+  VII p(n);
   
   for(int i = 0; i < n; ++i){
-    for(int j = 0; j < m[i]; ++j){
-      int temp; cin >> temp;
-      p[i].push_back(temp);
-    }  
+    int m; fp >> m;
+    p[i].resize(m);
   }
-    
   
-  vector<int> c(n, 0);
-  set< pair<int, int> > nexts;
+  for(int i = 0; i < n; ++i)
+    for(int j = 0; j < (int)p[i].size(); ++j) 
+      fp >> p[i][j];
+  
+  std::priority_queue< iPair , std::vector< iPair> ,std::greater< iPair> > min;
+  int b = 0;
+  VI index(n, 0);
   
   for(int i = 0; i < n; ++i){
-    nexts.insert({p[i][0], i});
-  }
+    min.push({p[i][0], i});
+    b = std::max(b, p[i][0]);
+  } 
   
-  int in = nexts.rbegin() -> first - nexts.begin() -> first + 1;
+  int interval = std::numeric_limits<int>::max();
   while(true){
-    pair<int, int> next = *nexts.begin();
-    if(c[next.second] < m[next.second] - 1){
-        nexts.erase(next);
-        nexts.insert({p[next.second][++c[next.second]], next.second});
+    iPair a = min.top();
+    interval = std::min(interval, b - a.first + 1);
+    index[a.second] += 1;
+    if(index[a.second] == (int)p[a.second].size()) break;
+    else{
+      min.pop();
+      min.push({p[a.second][index[a.second]], a.second});
+      b = std::max(b, p[a.second][index[a.second]]);
     }
-    else break;
-    int candidate = nexts.rbegin() -> first - nexts.begin() -> first + 1;
-    if(candidate < in) in = candidate;
   }
   
-  
-  cout << in << "\n";
-  
+  std::cout << interval << "\n";
 }
 
 int main(int argc, const char * argv[]){
-  ios_base::sync_with_stdio(0);
-  cin.tie(0);
-  
-  int t; cin >> t;
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0);
+  int t; fp >> t;
   while(t--) testcase();
-  
-  
   return 0;
 }

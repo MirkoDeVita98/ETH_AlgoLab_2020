@@ -1,93 +1,58 @@
 #include <bits/stdc++.h>
 
-using namespace std;
+typedef std::pair<int, int> iPair;
 
-#define IMPOSSIBLE -2
+std::istream & fp = std::cin;
 
-#define memo(i, j)((*_memo)[i][j])
+std::vector<long> *_memo;
+int n;
+#define memo(i, k) ((*_memo)[(n*(k)) + i])
 
-vector< vector<long> > *_memo;
 
-/*int f(const vector< vector< pair<int, int> > > &board, int i, long s, long x, int k){
-  if(s >= x) return 0;
-  if(k == 0) return IMPOSSIBLE;
-  
-  //if(memo(i, k) != -1) return memo(i, k);
-  
-  if(board[i].empty()){
-    return f(board, 0, s, x, k);
-  }
-  
-  int min = numeric_limits<int>::max();
-  for(pair<int, int> ii : board[i]){
-    int v = ii.first;
-    int p = ii.second;
-    
-    int temp = f(board, v, s + p, x, k - 1);
-    if(temp != IMPOSSIBLE && temp < min) min = temp;
-  }
-  
-  if(min == numeric_limits<int>::max()) memo(i, k) = IMPOSSIBLE;
-  else memo(i, k) = 1 + min;
-  
-  return min == numeric_limits<int>::max() ? IMPOSSIBLE : 1 + min;
-  
-}*/
-
-long f(const vector< vector< pair<int, int> > > &board, int i, int k){
-  if(k == 0) return 0;
+long f(const std::vector< std::vector< iPair> > & canals, int i, int k){
+  if(k <= 0) return 0;
   
   if(memo(i, k) != -1) return memo(i, k);
   
-  if(board[i].empty()) return f(board, 0, k);
+  if(canals[i].empty()) return f(canals, 0, k);
   
-  long max = 0;
-  for(pair<int, int> ii : board[i]){
-    int v = ii.first;
-    int p = ii.second;
-    
-    long temp = p + f(board, v, k - 1);
-    if(temp > max) max = temp;
-  }
+  long max = std::numeric_limits<long>::min();
+  for(iPair c : canals[i])
+    max = std::max(max, c.second + f(canals, c.first, k - 1));
+  
   
   return memo(i, k) = max;
-  
 }
 
 void testcase(){
-  int n, m, k; cin >> n >> m;
-  long x; cin >> x >> k;
-  
-  vector< vector< pair<int, int> > > board(n);
-  
+  int m, k; fp >> n >> m;
+  long x; fp >> x >> k;
+  std::vector< std::vector< iPair> > canals(n);
   for(int i = 0; i < m; ++i){
-    int u, v, p; cin >> u >> v >> p;
-    board[u].push_back({v, p});
+    int u, v, p; fp >> u >> v >> p;
+    canals[u].push_back({v, p});
   }
   
-  _memo = new vector< vector<long> > (n, vector<long> (k + 1, - 1));
+  _memo = new std::vector<long>(n*(k + 1), -1);
   
+  int L = 0;
+  int R = k + 1;
   
-  for(int i = 0; i <= k; ++i){
-    if(f(board, 0, i) >= x){
-      cout << i << "\n";
-      delete _memo;
-      return;
-    } 
+  while(L < R){
+    int mid = (L + R) / 2;
+    if(f(canals, 0, mid) < x) L = mid + 1;
+    else R = mid;
   }
   
-  cout << "Impossible\n";
-  
+  if(L > k) std::cout << "Impossible\n";
+  else std::cout << L << "\n";
   delete _memo;
-  
 }
 
-int main(int argc, const char *argv[]){
-  ios_base::sync_with_stdio(false);
-  cin.tie(0); cout.tie(0);
-  
-  int t; cin >> t;
-  
+int main(int argc, const char * argv[]){
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0);
+  int t; fp >> t;
   while(t--) testcase();
-  
+  return 0;
 }

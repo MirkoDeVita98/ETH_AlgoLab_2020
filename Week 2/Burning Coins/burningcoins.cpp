@@ -1,50 +1,35 @@
 #include <bits/stdc++.h>
 
-using namespace std;
+std::istream & fp = std::cin;
 
-#define memo(i, j) ((*memo)[v.size()*(i) + (j)])
+typedef std::vector<int> VI;
 
-vector<int> v;
-vector<int> *memo;
+int n;
+VI * _memo;
 
-int recursive(int i, int j){
-  if((v.size() + i + j) % 2 != 0){
-    if(i == j) return v[i];
-    if(memo(i, j) >= 0) return memo(i,j);
-    return memo(i,j) = max(v[j] + recursive(i, j - 1), v[i] + recursive(i + 1, j));
-  }
-  else{
-    if(i == j) return 0;
-    if(memo(i, j) >= 0) return memo(i,j);
-    return memo(i,j) = min(recursive(i, j - 1), recursive(i + 1, j)); 
-  }
- 
+#define memo(i, j) ((*_memo)[(n*(l)) + r])
+
+int f(const VI & v, int l, int r){
+  if(l > r) return 0;
+  if(memo(l, r) != - 1) return memo(l, r);
+  
+  if((l + n - r - 1) % 2 == 0) return memo(l, r) = std::max(v[l] + f(v, l + 1, r), v[r] + f(v, l, r - 1));
+  else return memo(l, r) = std::min(f(v, l + 1, r), f(v, l, r - 1));
 }
-
-
 
 void testcase(){
-  int n; cin >> n;
-  
-  for(int i = 0; i < n; ++i){
-    int x; cin >> x;
-    v.push_back(x); 
-  } 
-  
-  memo = new vector<int>(n * n, - 1);
-  cout << recursive(0, n - 1) << "\n";
-  
-  v.clear();
-  delete memo;
-  
+  fp >> n;
+  VI v(n);
+  for(int i = 0; i < n; ++i) fp >> v[i];
+  _memo = new VI(n * n, - 1);
+  std::cout << f(v, 0, n - 1) << "\n";
+  delete _memo;
 }
 
-
-int main(int argc, const char *argv[]){
-  ios_base::sync_with_stdio(0);
-  cin.tie(0);
-  
-  int t; cin >> t;
-  
+int main(int argc, const char * argv[]){
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0);
+  int t; fp >> t;
   while(t--) testcase();
+  return 0;
 }

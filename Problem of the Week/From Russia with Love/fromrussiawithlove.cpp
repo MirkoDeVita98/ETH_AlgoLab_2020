@@ -1,74 +1,38 @@
 #include <bits/stdc++.h>
 
-using namespace std;
+std::istream & fp = std::cin;
 
-#define own(i, j) ((*own)[s.size()*(i) + (j)])
-#define oth(i, j) ((*oth)[s.size()*(i) + (j)])
+typedef std::vector<int> VI;
+int n, m, k;
+VI *_memo;
 
-vector<int> s;
-int m, k, n;
+#define memo(l, r) (*_memo)[(n*(l)) + r]
 
-vector< int > *own;
-vector< int > *oth;
-
-int f(int i, int l, int r){
+int f(const VI & x, int l, int r){
   if(l > r) return 0;
-  if(i == m) i = 0;
   
-  if(i == k){
-    
-    if(own(l, r) != -1) return own(l, r);
-    
-    own(l, r) = max(s[l] + f(i + 1, l + 1, r), s[r] + f(i + 1, l, r - 1));
-    
-    return own(l, r);
-
-  }
-  else{
-    
-    if(oth(l, r) != -1) return oth(l, r);
-    
-    oth(l, r) = min(f(i + 1, l + 1, r), f(i + 1, l, r - 1));
-    
-    return oth(l, r);
-  }
+  if(memo(l, r) != - 1) return memo(l, r);
   
+  if( ((n - r - 1) + l) % m == k) return memo(l, r) = std::max(x[l] + f(x, l + 1, r), x[r] + f(x, l, r - 1));
+  else return memo(l, r) = std::min(f(x, l + 1, r), f(x, l, r - 1));
 }
 
 void testcase(){
-  cin >> n >> m >> k;
+  fp >> n >> m >> k;
+  VI x(n);
+  for(int i = 0; i < n; ++i) fp >> x[i];
   
-  own = new vector<int>(n * n, - 1);
-  oth = new vector<int>(n * n, - 1);
+  _memo = new VI(n * n, -1);
   
-  for(int i = 0; i < n; ++i){
-    int x; cin >> x;
-    s.push_back(x);
-  } 
+  std::cout << f(x, 0, n - 1) << "\n";
   
-  int w;
-  
-  if(k == 0){
-    w = max(s[0] + f(1, 1, n - 1), s[n - 1] + f(1, 0, n - 2));
-  }
-  else{
-    w = min(f(1, 1, n - 1), f(1, 0, n - 2));
-  }
-  
-  cout << w << "\n";
-  
-  s.clear();
-  
-  delete own;
-  delete oth;
+  delete _memo;
 }
 
-int main(int argc, const char *argv[]){
-  ios_base::sync_with_stdio(false);
-  
-  int t; cin >> t;
-  
+int main(int argc, const char * argv[]){
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0);
+  int t; fp >> t;
   while(t--) testcase();
-  
   return 0;
 }

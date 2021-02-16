@@ -1,57 +1,58 @@
-#include <bits/stdc++.h>
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/Triangulation_vertex_base_with_info_2.h>
 #include <CGAL/Triangulation_face_base_2.h>
 #include <boost/pending/disjoint_sets.hpp>
-#include <boost/graph/adjacency_list.hpp>
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 typedef std::size_t                                            Index;
 typedef CGAL::Triangulation_vertex_base_with_info_2<Index,K>   Vb;
 typedef CGAL::Triangulation_face_base_2<K>                     Fb;
 typedef CGAL::Triangulation_data_structure_2<Vb,Fb>            Tds;
-typedef CGAL::Delaunay_triangulation_2<K,Tds>                  Triangulation;
-typedef K::Point_2 Point;
-typedef std::tuple<long, Index, Index> Edge;
-typedef std::vector< Edge> EdgeV;
-
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, boost::no_property, boost::property<boost::edge_weight_t, long>> graph;
-typedef boost::property_map<graph, boost::edge_weight_t>::type weight_map;
-typedef boost::graph_traits<graph>::edge_descriptor edge_desc;
-typedef boost::graph_traits<graph>::out_edge_iterator oe;
+typedef CGAL::Delaunay_triangulation_2<K,Tds>                  Delaunay;
+typedef Delaunay::Vertex_handle Vertex_handle;
+typedef std::tuple<Index,Index,K::FT> Edge;
+typedef std::vector<Edge> EdgeV;
 
 std::istream & fp = std::cin;
 
-int func(const graph & G, int k, const K::FT & s,const weight_map & weights){
-  int n = boost::num_vertices(G);
-  std::vector<bool> visited(n, false); 
-  std::vector<int> c_size; 
+typedef std::vector<int> VI;
+
+Index n, k;
+
+int DFS(const Delaunay & t,const K::FT & s){
   
-  for(int i = 0; i < n; i++){
-    if(visited[i]) continue; 
-    int size = 0; 
-    std::queue<int> Q; 
-    Q.push(i); 
-    while(!Q.empty()){
-      int u = Q.front(); 
-      Q.pop();
-      visited[u] = true; 
-      size++; 
-      oe e_beg, e_end;
-      for (boost::tie(e_beg, e_end) = boost::out_edges(u, G); e_beg != e_end; ++e_beg){
-        int v = boost::target(*e_beg, G);
-        if(!visited[v] && weights[*e_beg] < s) Q.push(v);
-      }
-    }
-    c_size.push_back(size); 
+  std::vector<bool> visited(n, false);
+  VI sizes;
+  
+  for(auto u = t.finite_vertices_begin(); u != t.finite_vertices_end(); ++u){
+    if(visited[u -> info()]) continue;
+    std::stack< Vertex_handle> S;
+    S.push(u);
+    
+    int size_c = 1;
+    visited[u -> info()] = true;
+    
+    do{
+      Vertex_handle v = S.top();
+      S.pop();
+
+      Delaunay::Vertex_circulator c = t.incident_vertices(v); 
+      do {
+        if (t.is_infinite(c)) continue;
+        if(!visited[c -> info()] && CGAL::squared_distance(v -> point(), c -> point()) < s){
+          visited[c -> info()] = true;
+          S.push(c);
+          size_c += 1;
+        } 
+      } while (++c != t.incident_vertices(v));
+    }while(!S.empty());
+    
+    sizes.push_back(size_c);
   }
   
-  int s1 = 0; 
-  int s2 = 0; 
-  int s3 = 0; 
-  int f = 0; 
-  for(int component : c_size){
+  int s1 = 0, s2 = 0, s3 = 0, f = 0;
+  
+  for(int component : sizes){
     if(component == 1) s1++; 
     else if(component == 2) s2++; 
     else if(component == 3) s3++; 
@@ -81,65 +82,63 @@ int func(const graph & G, int k, const K::FT & s,const weight_map & weights){
   
   //error
   return -1;
-  
 }
 
 void testcase(){
-  int n, k, f; fp >> n >> k >> f;
-  long s; fp >> s;
+  int f0; 
+  long s0;
+  fp >> n >> k >> f0 >> s0;
   
-  std::vector<std::pair<Point, int>> pts(n); 
-  for(int i = 0; i < n; i++){
-    int x, y; 
-    fp >> x >> y; 
-    pts[i] = {Point(x, y), i}; 
+  typedef std::pair<K::Point_2,Index> IPoint;
+  std::vector<IPoint> points;
+  points.reserve(n);
+  for (Index i = 0; i < n; ++i) {
+    int x, y;
+    std::cin >> x >> y;
+    points.emplace_back(K::Point_2(x, y), i);
   }
-  
-  Triangulation t; 
-  t.insert(pts.begin(), pts.end());
-  
+  Delaunay t;
+  t.insert(points.begin(), points.end());
+
   EdgeV edges;
-  for(auto e = t.finite_edges_begin(); e != t.finite_edges_end(); ++e){
-    Index u = e -> first->vertex( (e -> second+1)%3 )->info();
-    Index v = e -> first->vertex( (e -> second+2)%3 )->info();
-    if(u > v) std::swap(u, v);
-    long weight = t.segment(e).squared_length();
-    edges.push_back(std::make_tuple(weight, u, v));
+  edges.reserve(3*n);
+  for (auto e = t.finite_edges_begin(); e != t.finite_edges_end(); ++e) {
+    Index i1 = e->first->vertex((e->second+1)%3)->info();
+    Index i2 = e->first->vertex((e->second+2)%3)->info();
+    if (i1 > i2) std::swap(i1, i2);
+    edges.emplace_back(i1, i2, t.segment(e).squared_length());
   }
-  
-  std::sort(edges.begin(), edges.end());
-  
+  std::sort(edges.begin(), edges.end(),
+      [](const Edge& e1, const Edge& e2) -> bool {
+        return std::get<2>(e1) < std::get<2>(e2);
+            });
+
   boost::disjoint_sets_with_storage<> uf(n);
-  graph G(n);
-  weight_map weights = boost::get(boost::edge_weight, G);
-  Index num_comp = n;
-  std::vector<long> edges_to_try;
-  for(EdgeV::const_iterator e = edges.begin(); e != edges.end(); ++e){
-    Index u = std::get<1>(*e);
-    Index v = std::get<2>(*e);
-    if(uf.find_set(u) != uf.find_set(v)){
-      uf.link(u, v);
-      edge_desc ed = boost::add_edge(u, v, G).first;
-      weights[ed] = std::get<0>(*e);
-      edges_to_try.push_back(std::get<0>(*e));
-      num_comp -= 1;
-      if(num_comp == 1) break;
+  Index n_components = n;
+  std::vector<K::FT> tries;
+  for (EdgeV::const_iterator e = edges.begin(); e != edges.end(); ++e) {
+    Index c1 = uf.find_set(std::get<0>(*e));
+    Index c2 = uf.find_set(std::get<1>(*e));
+    if (c1 != c2) {
+      uf.link(c1, c2);
+      tries.push_back(std::get<2>(*e));
+      if (--n_components == 1) break;
     }
   }
   
-  int max_f_with_s0 = func(G, k, s, weights);
-  std::sort(edges_to_try.begin(), edges_to_try.end());
-  int l = 0;
-  int r = edges_to_try.size() - 1;
-
-  while(l < r){
-    int m = (l + r) / 2;
-    int res = func(G, k, edges_to_try[m], weights);
-    if(res >= f) l = m + 1; 
-    else r = m;
+  std::sort(tries.begin(), tries.end());
+  
+  int L = 0;
+  int R = tries.size();
+  
+  while(L < R){
+    int mid = (L + R) / 2;
+    if(DFS(t, tries[mid]) >= f0) L = mid + 1;
+    else R = mid;
   }
   
-  std::cout << edges_to_try[l - 1] << " " << max_f_with_s0 << "\n";
+  std::cout << std::fixed << std::setprecision(0) << ceil(CGAL::to_double(tries[L - 1])) << " " << DFS(t, s0) << std::endl;
+  
 }
 
 int main(int argc, const char * argv[]){

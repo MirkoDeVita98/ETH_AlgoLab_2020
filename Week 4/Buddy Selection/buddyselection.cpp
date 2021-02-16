@@ -1,88 +1,54 @@
 #include <bits/stdc++.h>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/max_cardinality_matching.hpp>
-#include <boost/property_map/vector_property_map.hpp>
-
-
 
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> graph;
-typedef boost::graph_traits<graph>::vertex_descriptor vertex_desc;
+typedef boost::graph_traits<graph>::vertex_descriptor                       vertex_desc;
 
-using namespace std;
+int maximum_matching(const graph &G) {
+  int n = boost::num_vertices(G);
+  std::vector<vertex_desc> mate_map(n);
 
-bool maximum_matching(const graph &G) {
-    int n = boost::num_vertices(G);
-    vector<bool> checker(n, false);
-    std::vector<vertex_desc> mate_map(n); 
-    const vertex_desc NULL_VERTEX = boost::graph_traits<graph>::null_vertex();
-    boost::edmonds_maximum_cardinality_matching(G, boost::make_iterator_property_map(mate_map.begin(), boost::get(boost::vertex_index, G)));
-    for (int i = 0; i < n; ++i) {
-        if (mate_map[i] != NULL_VERTEX && i < mate_map[i]) {
-            checker[i] = true;
-            checker[mate_map[i]] = true;
-        }
-    }
-    for(int i = 0; i < n; ++i) {
-        if(!checker[i]) return false;
-    }
-    return true;
+  boost::edmonds_maximum_cardinality_matching(G,
+    boost::make_iterator_property_map(mate_map.begin(), boost::get(boost::vertex_index, G)));
+  return boost::matching_size(G,
+    boost::make_iterator_property_map(mate_map.begin(), boost::get(boost::vertex_index, G)));
 }
+std::istream & fp = std::cin;
 
 void testcase(){
-  int n, c, f; cin >> n >> c >> f;
+  int n, c, f; fp >> n >> c >> f;
   
-  map < string, int > feat;
-  
-  int num_c = 0;
   graph G(n);
   
-  vector< set<int> > buddies (n);
+  std::unordered_map< std::string, std::vector<int > > features;
+  
   for(int i = 0; i < n; ++i){
+    std::unordered_map< int, int> common;
     for(int j = 0; j < c; ++j){
-      string temp; cin >> temp;
-      map< string, int >::iterator exist = feat.find (temp);
-      
-      if (exist == feat.end()){
-        buddies[i].insert(num_c);
-        feat.insert( pair< string, int >(temp, num_c));
-        ++num_c;
-      }
+      std::string s; fp >> s;
+      if(features.find(s) == features.end()) features.insert({s, {i}});
       else{
-        buddies[i].insert(exist -> second);
-      }
-      
-    }
-  }
-  
-  for(int i = 0; i < n; ++i){
-    for(int j = i + 1; j < n; ++j){
-      int count = 0;
-
-      for(int c1 : buddies[i]){
-        
-        if(buddies[j].find(c1) != buddies[j].end()) ++count;
-        if(count > f){
-          boost::add_edge(i, j, G);
-          break;
+        for(int buddy : features[s]){
+          if(common.find(buddy) == common.end()) common.insert({buddy, 1});
+          else common[buddy] += 1;
         }
-
-      }
+        features[s].push_back(i);
+      } 
+    }
+    for(auto& it : common){
+      if(it.second > f) boost::add_edge(i, it.first, G);
     }
   }
   
-  if(maximum_matching(G)) cout << "not optimal\n";
-  else cout << "optimal\n";
-  
-  
+  if(2*maximum_matching(G) == n) std::cout << "not optimal\n";
+  else std::cout << "optimal\n";
 }
 
-int main(int agrc, const char* argv[]){
-  ios_base::sync_with_stdio(false);
-  cin.tie(0); cout.tie(0);
-  
-  int t; cin >> t;
-  
+int main(int argc, const char * argv[]){
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0);
+  int t; fp >> t;
   while(t--) testcase();
-  
   return 0;
 }

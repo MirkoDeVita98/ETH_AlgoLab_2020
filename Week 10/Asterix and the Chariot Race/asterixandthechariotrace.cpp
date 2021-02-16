@@ -1,62 +1,66 @@
-
 #include <bits/stdc++.h>
 
 std::istream & fp = std::cin;
 
+typedef std::vector<int> VI;
+typedef std::vector< VI> VII;
 
-int f(int (*dp)[2][2],const std::vector< std::vector<int> > & s, const std::vector<int> & c, int n, int i, int covered, int compulsory){
+int n;
+VI *_memo;
+#define memo(u, cov, comp) ((*_memo)[2*((2*(u)) + cov) + comp])
+
+int f(const VII & s, const VI & c, int u, int covered, int compulsory){
   
-  if(dp[i][covered][compulsory] != -1)
-    return dp[i][covered][compulsory];
-    
-  if(s[i].empty()){
-    if (covered) return dp[i][covered][compulsory] = 0;
-    else return dp[i][covered][compulsory] = c[i];
+  if(memo(u, covered, compulsory) != -1) return memo(u, covered, compulsory);
+  
+  if(s[u].empty()){
+    if(covered) return memo(u, covered, compulsory) = 0;
+    else return memo(u, covered, compulsory) = c[u];
   }
   
-  int cov = 0;
+  int cov = c[u];
+  for(int v : s[u]) cov += f(s, c, v, 1, 0);
+
+  
+  if(compulsory) return memo(u, covered, compulsory) = cov;
+  
   int not_cov = 0;
-  for(int j : s[i]){
-    cov += f(dp, s, c, n, j, 1, 0);
-    not_cov += f(dp, s, c, n, j, 0, 0);
+  for(int v : s[u]) not_cov += f(s, c, v, 0, 0);
+
+  
+  if(covered) return memo(u, covered, compulsory) = std::min(cov, not_cov);
+  
+  int one_compulsory = cov;
+  for(int v : s[u]){
+    one_compulsory = std::min(one_compulsory, not_cov - f(s,c, v, 0, 0) + f(s, c, v, 0, 1));
   }
   
-  if(compulsory)
-    return dp[i][covered][compulsory] = c[i] + cov;
-
-    
-  if(covered)
-    return dp[i][covered][compulsory] = std::min(c[i] + cov, not_cov);
-
-  int m = c[i] + cov;
-  for(int j : s[i]){
-    m = std::min(m, not_cov - f(dp, s, c, n, j, 0, 0)  + f(dp, s, c, n, j, 0, 1));
-  } 
+  return memo(u, covered, compulsory) = one_compulsory;
   
-  return dp[i][covered][compulsory] = m;
 }
 
 void testcase(){
-  int n; fp >> n;
-  
-  std::vector< std::vector<int> > s(n);
-  for(int k = 1; k < n ; ++k){
-    int i,j; fp >> i >> j;
-    s[i].push_back(j);
+  fp >> n;
+  VII s(n);
+  for(int i = 1; i < n; ++i){
+    int u, v; fp >> u >> v;
+    s[u].push_back(v);
   }
-  
-  std::vector<int> c(n);
+  VI c(n);
   for(int i = 0; i < n; ++i) fp >> c[i];
   
-  int dp[n][2][2];
-  memset(dp, -1, sizeof(dp));
+  _memo = new VI(2*2*n, -1);
   
-  std::cout << f(dp, s, c, n, 0, 0, 0) << "\n";
+  std::cout << f(s, c, 0, 0, 0) << "\n";
+  
+  delete _memo;
 }
+
 
 int main(int argc, const char * argv[]){
   std::ios_base::sync_with_stdio(false);
   fp.tie(0);
   int t; fp >> t;
   while(t--) testcase();
+  return 0;
 }

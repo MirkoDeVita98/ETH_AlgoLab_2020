@@ -1,92 +1,66 @@
 #include <bits/stdc++.h>
-
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/push_relabel_max_flow.hpp>
-#include <boost/tuple/tuple.hpp>
 
-using namespace std;
-using namespace boost;
+typedef boost::adjacency_list_traits<boost::vecS, boost::vecS, boost::directedS> traits;
+typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, boost::no_property,
+    boost::property<boost::edge_capacity_t, long,
+        boost::property<boost::edge_residual_capacity_t, long,
+            boost::property<boost::edge_reverse_t, traits::edge_descriptor>>>> graph;
 
-typedef  adjacency_list_traits<vecS, vecS, directedS> Traits;
-typedef  adjacency_list<vecS, vecS, directedS, no_property, property<edge_capacity_t, long, property<edge_residual_capacity_t, long, property<edge_reverse_t, Traits::edge_descriptor> > > >  Graph;
-typedef  property_map<Graph, edge_capacity_t>::type EdgeCapacityMap;
-typedef  property_map<Graph, edge_residual_capacity_t>::type ResidualCapacityMap;
-typedef  property_map<Graph, edge_reverse_t>::type  ReverseEdgeMap;
-typedef  graph_traits<Graph>::vertex_descriptor Vertex;
-typedef  graph_traits<Graph>::edge_descriptor Edge;
+typedef traits::vertex_descriptor vertex_desc;
+typedef traits::edge_descriptor edge_desc;
 
-struct EdgeAdder {
-  EdgeAdder(Graph & G, EdgeCapacityMap &capacity, ReverseEdgeMap &rev_edge) : G(G), capacity(capacity), rev_edge(rev_edge) {}
+class edge_adder {
+  graph &G;
 
-  void addEdge(int u, int v, long c) {
-    Edge e, reverseE;
-    tie(e, tuples::ignore) = add_edge(u, v, G);
-    tie(reverseE, tuples::ignore) = add_edge(v, u, G);
-    capacity[e] = c;
-    capacity[reverseE] = 0;
-    rev_edge[e] = reverseE;
-    rev_edge[reverseE] = e;
+ public:
+  explicit edge_adder(graph &G) : G(G) {}
+
+  void add_edge(int from, int to, long capacity) {
+    auto c_map = boost::get(boost::edge_capacity, G);
+    auto r_map = boost::get(boost::edge_reverse, G);
+    const auto e = boost::add_edge(from, to, G).first;
+    const auto rev_e = boost::add_edge(to, from, G).first;
+    c_map[e] = capacity;
+    c_map[rev_e] = 0;
+    r_map[e] = rev_e;
+    r_map[rev_e] = e;
   }
-  
-  void addSymmetricEdge(int u, int v, long c) {
-    Edge e, reverseE;
-    tie(e, tuples::ignore) = add_edge(u, v, G);
-    tie(reverseE, tuples::ignore) = add_edge(v, u, G);
-    capacity[e] = c;
-    capacity[reverseE] = c;
-    rev_edge[e] = reverseE;
-    rev_edge[reverseE] = e;
-  }
-  Graph &G;
-  EdgeCapacityMap  &capacity;
-  ReverseEdgeMap  &rev_edge;
 };
 
-
+std::istream & fp = std::cin;
 
 void testcase(){
-  int n,m; cin >> n >> m;
-  long s; cin >> s;
+  int n, m, s; fp >> n >> m >> s;
+  graph G(n);
+  edge_adder adder(G);
+  vertex_desc sink = boost::add_vertex(G);
   
-  Graph G(n);
-  EdgeCapacityMap  capacity = get(edge_capacity, G);
-  ReverseEdgeMap  rev_edge = get(edge_reverse, G);
-  EdgeAdder ea(G,capacity, rev_edge);
-  
-  set< int > shops;
-  
+  std::vector<int> stores(n, 0);
   for(int i = 0; i < s; ++i){
-    int shop; cin >> shop;
-    shops.insert(shop);
+    int intersection; fp >> intersection;
+    stores[intersection] += 1;
+  }
+  
+  for(int i = 0; i < n; ++i){
+    if(stores[i] >= 1) adder.add_edge(i, sink, stores[i]);
   }
   
   for(int i = 0; i < m; ++i){
-    int a, b; cin >> a >> b;
-    ea.addSymmetricEdge(a, b, 1);
+    int a, b; fp >> a >> b;
+    adder.add_edge(a, b, 1);
+    adder.add_edge(b, a, 1);
   }
   
-  Vertex _source = 0;
-  Vertex sink = add_vertex(G);
-  
-  set<int>::iterator it = shops.begin();
-  while (it != shops.end())
-  {
-    ea.addEdge(*it, sink, 1);
-    it++;
-  }
-  
-  long flow = push_relabel_max_flow(G, _source, sink);
-
-  if(flow == (long)shops.size()) cout << "yes\n";
-  else cout << "no\n";
-  
+  if(boost::push_relabel_max_flow(G, 0, sink) == s) std::cout << "yes\n";
+  else std::cout <<"no\n";
 }
 
-int main(int argc, const char *argv[]){
-  ios_base::sync_with_stdio(false);
-  cin.tie(0); cout.tie(0);
-  
-  int t; cin >> t;
-  
+int main(int argc, const char * argv[]){
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0);
+  int t; fp >> t;
   while(t--) testcase();
+  return 0;
 }

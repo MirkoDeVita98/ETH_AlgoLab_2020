@@ -1,62 +1,51 @@
 #include <bits/stdc++.h>
 
-using namespace std;
+std::istream & fp = std::cin;
+
+typedef std::vector<int> VI;
 
 void testcase(){
-  int n; cin >> n;
-  vector<int> x(n);
-  for(int i = 0; i < n; ++i) cin >> x[i];
-  sort(x.begin(), x.end());
+  int n; fp >> n;
+  VI x(n);
+  for(int i = 0; i < n; ++i) fp >> x[i];
+  std::sort(x.begin(), x.end());
   
-  int j = 0;
-  int i = 0;
-  int max = 0;
-  int min = numeric_limits<int>::max();
-  vector<int> b;
-  while(j < n){
-    int temp = abs(x[j] - x[i]);
-    int f = (int)floor((float)temp/2);
-    int c = (int)ceil((float)temp/2);
-    
-    if(temp > 200) ++i;
+  int i = 0, j = 0;
+  VI loc;
+  int max_par = 0;
+  int min_dist = std::numeric_limits<int>::max();
+  while(i < n && j < n){
+    int bar = x[j] - x[i];
+    int bar_f = floor((float)bar/2); 
+    int bar_c = ceil((float)bar/2); 
+    if(bar > 200) i += 1;
     else{
-      if(j - i + 1 > max){
-        max = j - i + 1;
-        b.clear();
-        min = c;
-        b.push_back(f + x[i]);
-        if(c != f) b.push_back(c + x[i]);
-      }
-      else if(j - i + 1 == max){
-        if(c < min){
-          min = c;
-          b.clear();
-          b.push_back(f + x[i]);
-          if(c != f) b.push_back(c + x[i]);
+      int parasols = j - i + 1;
+      if(parasols >= max_par){
+        if(parasols > max_par || bar_c < min_dist){
+          loc.clear();
+          min_dist = bar_c;
+          max_par = parasols;
         } 
-        else if(c == min){
-          b.push_back(f + x[i]);
-          if(c != f) b.push_back(c + x[i]);
+        if(bar_c <= min_dist){
+          loc.push_back(bar_f + x[i]);
+          if(bar_c != bar_f )loc.push_back(bar_c + x[i]);
         }
-        
       }
-      ++j;
+      j += 1;
     }
   }
   
-  cout << max << " " << min << "\n";
-  for(int bar : b) cout << bar << " ";
-  cout << "\n";
+  std::cout << max_par << " " << min_dist << "\n";
+  for(int bar_loc : loc) std::cout << bar_loc << " ";
+  std::cout << "\n";
+  
 }
 
-
-int main(int argc, const char *argv[]){
-  ios_base::sync_with_stdio(0);
-  cin.tie(0);
-  
-  int t; cin >> t;
-  
+int main(int argc, const char * argv[]){
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0);
+  int t; fp >> t;
   while(t--) testcase();
-  
   return 0;
 }

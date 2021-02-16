@@ -1,4 +1,3 @@
-///3
 #include <bits/stdc++.h>
 #include <boost/graph/kruskal_min_spanning_tree.hpp>
 #include <boost/graph/adjacency_list.hpp>

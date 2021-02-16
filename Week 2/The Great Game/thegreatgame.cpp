@@ -1,99 +1,55 @@
 #include <bits/stdc++.h>
 
-using namespace std;
-
-#define adj(i) ((*adj)[i])
-
-
-typedef std::vector< std::vector<int> > matrix;
-
-matrix *adj;
-int *own;
-int *oth;
-
-
+std::istream & fp = std::cin;
+typedef std::vector<int> VI;
+typedef std::vector<VI> VII;
 
 int n;
+VI *_memo;
 
+#define memo(u, p) ((*_memo)[(2*u) + p])
 
-int f(int i, int p){
-
-  if(i == n) return 1;
-
-
-  if(p){
-    if(own[i] != -1) return own[i];
-  }
-  else{
-    if(oth[i] != -1) return oth[i];
-  }
-
-  int min = numeric_limits<int>::max();
-  int max = numeric_limits<int>::min();
-  for(int v : adj(i)){
-      int temp = 1 + f(v, !p);
-      if(!p){
-        if(temp > max) max = temp;
-      } 
-      else{
-        if(temp < min) min = temp;
-      }
-  }
-
-  if(p) own[i] = min;
-  else oth[i] = max;
+int f(const VII & t, int u, int p){
+  if(u == n) return 0;
   
-  return !p ? max : min;
-
+  if(memo(u, p) != -1) return memo(u, p);
+  
+  int temp = p ? std::numeric_limits<int>::max() : std::numeric_limits<int>::min();
+  for(int v : t[u]){
+    if(p) temp = std::min(temp, 1 + f(t, v, !p));
+    else temp = std::max(temp, 1 + f(t, v, !p));
+  }
+  return memo(u, p) = temp;
 }
-
 
 void testcase(){
-    int m, r, b; cin >> n >> m >> r >> b;
-
-    adj = new vector< vector<int> >(n+1);
-
-    own = new int [n+1];
-    oth = new int [n+1];
-    
-    for(int i = 0; i < n+1; ++i){
-      own[i] = -1;
-      oth[i] = -1;
-    }
-
-    for(int i = 0; i < m; ++i){
-        int u; cin >> u;
-        int v; cin >> v;
-        adj(u).push_back(v);
-    }
-
-
-    int sh = f(r, 1);
-    int mo = f(b, 1);
-
-    char w;
-
-    if(sh == mo){
-        if(sh % 2 != 0) w = '1';
-        else w = '0';
-    }
-    else if(sh < mo) w = '0';
-    else w = '1';
-
-    cout << w << "\n";
-
-    delete adj;
-    delete own;
-    delete oth;
-
+  int m, r, b; fp >> n >> m >> r >> b;
+  VII t(n + 1);
+  
+  for(int i = 0; i < m; ++i){
+    int u, v; fp >> u >> v;
+    t[u].push_back(v);
+  }
+  
+  _memo = new VI(2*(n + 1), -1);
+  
+  int sh = f(t, r, 1);
+  int mo = f(t, b, 1);
+  
+  int w;
+  if(sh == mo) w = sh % 2 == 0;
+  else if(sh < mo) w = 0;
+  else w = 1;
+  
+  std::cout << w << "\n";
+  
+  delete _memo;
 }
 
-int main(int argc, const char *argv[]){
-    ios_base::sync_with_stdio(false);
-
-    int t; cin >> t;
-
-    while(t--) testcase();
-
-    return 0;
+int main(int argc, const char * argv[]){
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0);
+  int t; fp >> t;
+  while(t--) testcase();
+  return 0;
 }

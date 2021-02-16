@@ -1,123 +1,89 @@
 #include <bits/stdc++.h>
-#include <cassert>
 
-using namespace std;
+typedef std::pair<long, long> lPair;
 
-typedef long ll;
+std::istream & fp = std::cin;
 
-int r_bin(const vector< pair<ll, ll> > &subS2, ll t1, ll T){
-  int L = 0;
-  int R = subS2.size();
-  
-  while(L < R){
-    int mid = (L + R)/2;
-    
-    if(subS2[mid].second + t1 < T) L = mid + 1;
-    else R = mid;
-  }
-  
-  return L - 1;
-}
+long D, T;
 
-bool compare_time(pair<ll, ll> p1, pair< ll, ll> p2){
-  return p1.second < p2.second;
-}
-
-bool split_and_list(ll d_gulp,const vector< pair<ll,ll> > &movements,int n,ll D,ll T){
-  vector< pair<ll, ll> > S1(movements.begin(), movements.begin() + movements.size() / 2);
-  vector< pair<ll, ll> > S2(movements.begin() + movements.size() / 2, movements.end());
-
-  vector< pair<ll, ll> > subS1;
-  vector< pair<ll, ll> > subS2;
-  
-  for (ll s = 0; s < (1 << (ll)S1.size()); ++s) {
-    ll t = 0; 
-    ll d = 0;
-    for(ll i = 0; i < (ll)S1.size(); ++i){
-      if (s & (1 << i)){
-        t += S1[i].second;
+bool create_subsets(const std::vector<lPair> & S, std::vector<lPair> & M, long g){
+  for (int s = 0; s < 1 << (int)S.size(); ++s) {
+    long t = 0; 
+    long d = 0;
+    for(int i = 0; i < (int)S.size(); ++i){
+      if (s & 1 << i){
+        t += S[i].first;
         if(t > T) break;
-        d += (S1[i].first + d_gulp);
+        d += (S[i].second + g);
       } 
     }
-    if(t < T) subS1.push_back({d, t});
+    if(t < T) M.push_back({t, d});
     if(d >= D && t < T) return true;
   }
+  return false;
+}
+
+bool split_and_list(const std::vector<lPair> & S1, const std::vector<lPair> & S2, long g){
+  std::vector< lPair > M1;
+  std::vector< lPair > M2;
   
-  for (ll s = 0; s < (1 << (ll)S2.size()); ++s) {
-    ll t = 0; 
-    ll d = 0;
-    for(ll i = 0; i < (ll)S2.size(); ++i){
-      if (s & (1 << i)){
-        t += S2[i].second;
-        if(t > T) break;
-        d += (S2[i].first + d_gulp);
-      } 
+  if(create_subsets(S1, M1, g)) return true;
+  if(create_subsets(S2, M2, g)) return true;
+  
+  std::sort(M2.begin(), M2.end());
+  
+  std::vector<long> maxD(M2.size());
+  long max = M2[0].second;
+  for(int i = 0; i < (int)M2.size(); ++i) maxD[i] = max = std::max(max, M2[i].second);
+  
+  for(lPair m1 : M1){
+    long t1 = m1.first;
+    long d1 = m1.second;
+    int L = 0;
+    int R = M2.size();
+    while(L < R){
+      int mid = (L + R) / 2;
+      long t2 = M2[mid].first;
+      if(t1 + t2 < T) L = mid + 1;
+      else R = mid;
     }
-    if(t < T) subS2.push_back({d, t});
-    if(d >= D && t < T) return true;
-  }
-  
-  sort(subS2.begin(), subS2.end(), compare_time);
-  
-  vector<ll> partialMax(subS2.size());
-  partialMax[0] = subS2[0].first;
-  ll currMax = subS2[0].first;
-  for(ll i = 1; i < (ll)subS2.size(); ++i){
-    if(subS2[i].first > currMax) currMax = subS2[i].first;
-    partialMax[i] = currMax;
-  }
-  
-   for(ll i = 0; i < (ll)subS1.size(); ++i){
-    pair<ll, ll> set1 = subS1[i];
-    ll index = r_bin(subS2, set1.second, T);
     
-    if(index != (ll)subS2.size() && partialMax[index] + set1.first >= D) return true;
+    if (d1 + maxD[L - 1] >= D) return true;
   }
   
   return false;
 }
 
-int minimum(int n,ll D,ll T,const vector< pair<ll,ll> > &movements,vector< ll > gulps){
-  int L = 0;
-  int R = gulps.size();
+void testcase(){
+  int n, m; fp >> n >> m;
+  fp >> D >> T;
+  std::vector< lPair> S1;
+  std::vector< lPair>  S2;
+  for(int i = 0; i < n; ++i){
+    long d, t; fp >> d >> t;
+    if(i % 2 !=  0) S1.push_back({t, d});
+    else S2.push_back({t, d});
+  }
   
+  std::vector<long> s(m + 1, 0);
+  for(int i = 1; i <= m; ++i) fp >> s[i];
+  
+  int L = 0;
+  int R = s.size();
   while(L < R){
     int mid = (L + R) / 2;
-    if(split_and_list(gulps[mid], movements, n, D, T)) R = mid;
-    else L = mid + 1;
+    if(split_and_list(S1, S2, s[mid])) R = mid;
+    else L  = mid + 1;
   }
   
-  return L;
+  if(L < (int)s.size()) std::cout << L << "\n";
+  else std::cout << "Panoramix captured" << "\n";
 }
 
-void testcase(int test){
-  int n, m; cin >> n >> m;
-  ll D, T; cin >> D >> T;
-  
-  vector< pair<ll,ll> > movements(n);
-  vector< ll > gulps(m + 1);
-  
-  for(int i = 0; i < n; ++i){
-    ll d, t; cin >> d >> t;
-    movements[i] = {d, t};
-  }
-  
-  gulps[0] = 0;
-  for(int i = 1; i <= m; ++i){
-    cin >> gulps[i];
-  }
-  
-  ll gulp = minimum(n, D, T, movements, gulps);
-  
-  if(gulp != (ll)gulps.size()) cout << gulp << "\n";
-  else cout << "Panoramix captured\n";
-}
-
-int main(int argc, const char *argv[]){
-  ios_base::sync_with_stdio(false);
-  cin.tie(0); cout.tie(0);
-  
-  int t; cin >> t;
-  while(t--) testcase(t);
+int main(int argc, const char * argv[]){
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0); std::cout.tie(0);
+  int t; fp >> t;
+  while(t--) testcase();
+  return 0;
 }

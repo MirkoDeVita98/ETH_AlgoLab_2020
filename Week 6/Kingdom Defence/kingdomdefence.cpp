@@ -1,96 +1,76 @@
 #include <bits/stdc++.h>
-
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/push_relabel_max_flow.hpp>
-#include <boost/tuple/tuple.hpp>
 
-using namespace std;
-using namespace boost;
+typedef boost::adjacency_list_traits<boost::vecS, boost::vecS, boost::directedS> traits;
+typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, boost::no_property,
+    boost::property<boost::edge_capacity_t, long,
+        boost::property<boost::edge_residual_capacity_t, long,
+            boost::property<boost::edge_reverse_t, traits::edge_descriptor>>>> graph;
 
-typedef  adjacency_list_traits<vecS, vecS, directedS> Traits;
-typedef  adjacency_list<vecS, vecS, directedS, no_property, property<edge_capacity_t, long, property<edge_residual_capacity_t, long, property<edge_reverse_t, Traits::edge_descriptor> > > >  Graph;
-typedef  property_map<Graph, edge_capacity_t>::type EdgeCapacityMap;
-typedef  property_map<Graph, edge_residual_capacity_t>::type ResidualCapacityMap;
-typedef  property_map<Graph, edge_reverse_t>::type  ReverseEdgeMap;
-typedef  graph_traits<Graph>::vertex_descriptor Vertex;
-typedef  graph_traits<Graph>::edge_descriptor Edge;
+typedef traits::vertex_descriptor vertex_desc;
+typedef traits::edge_descriptor edge_desc;
 
-struct EdgeAdder {
-  EdgeAdder(Graph & G, EdgeCapacityMap &capacity, ReverseEdgeMap &rev_edge) : G(G), capacity(capacity), rev_edge(rev_edge) {}
+class edge_adder {
+  graph &G;
 
-  void addEdge(int u, int v, long c) {
-    Edge e, reverseE;
-    tie(e, tuples::ignore) = add_edge(u, v, G);
-    tie(reverseE, tuples::ignore) = add_edge(v, u, G);
-    capacity[e] = c;
-    capacity[reverseE] = 0;
-    rev_edge[e] = reverseE;
-    rev_edge[reverseE] = e;
+ public:
+  explicit edge_adder(graph &G) : G(G) {}
+
+  void add_edge(int from, int to, long capacity) {
+    auto c_map = boost::get(boost::edge_capacity, G);
+    auto r_map = boost::get(boost::edge_reverse, G);
+    const auto e = boost::add_edge(from, to, G).first;
+    const auto rev_e = boost::add_edge(to, from, G).first;
+    c_map[e] = capacity;
+    c_map[rev_e] = 0;
+    r_map[e] = rev_e;
+    r_map[rev_e] = e;
   }
-  
-  void addSymmetricEdge(int u, int v, long c) {
-    Edge e, reverseE;
-    tie(e, tuples::ignore) = add_edge(u, v, G);
-    tie(reverseE, tuples::ignore) = add_edge(v, u, G);
-    capacity[e] = c;
-    capacity[reverseE] = c;
-    rev_edge[e] = reverseE;
-    rev_edge[reverseE] = e;
-  }
-  Graph &G;
-  EdgeCapacityMap  &capacity;
-  ReverseEdgeMap  &rev_edge;
 };
 
+
+std::istream & fp = std::cin;
+
 void testcase(){
-  int l, p; cin >> l >> p;
+  int l, p; fp >> l >> p;
+  graph G(l);
+  edge_adder adder(G);
   
-  Graph G(l);
-  EdgeCapacityMap  capacity = get(edge_capacity, G);
-  ReverseEdgeMap  rev_edge = get(edge_reverse, G);
-  EdgeAdder ea(G,capacity, rev_edge);
+  vertex_desc source = boost::add_vertex(G);
+  vertex_desc sink = boost::add_vertex(G);
   
-  
-  vector<int> soldiers(l);
+  std::vector<int> balance(l, 0);
   for(int i = 0; i < l; ++i){
-    int g, d; cin >> g >> d;
-    soldiers[i] = d - g;
+    int g, d; fp >> g >> d;
+    balance[i] = g - d;
   }
   
-  vector< vector<int> > edges(l, vector<int> (l, numeric_limits<int>::min()));
-  
-  for(int i = 0; i < p; i++){
-    int f, t, c, C; cin >> f >> t >> c >> C;
-    soldiers[f] += c;
-    soldiers[t] -= c;
-    ea.addEdge(f, t, C - c);
+  for(int i = 0; i < p; ++i){
+    int f, t, c, C; fp >> f >> t >> c >> C;
+    balance[f] -= c;
+    balance[t] += c;
+    adder.add_edge(f, t, C - c);
   }
   
-  Vertex _source = add_vertex(G);
-  Vertex sink = add_vertex(G);
-  long demand = 0;
+  int demand = 0;
+  for(int i = 0; i < l; ++i){
+    if(balance[i] > 0) adder.add_edge(source, i, balance[i]);
+    else{
+      adder.add_edge(i, sink, - balance[i]);
+      demand += (-balance[i]);
+    } 
+  }
   
-   for(int i = 0; i < l; i++){
-      if(soldiers[i] >= 0){
-          demand += soldiers[i];
-          ea.addEdge(i, sink, soldiers[i]);
-      } else {
-          soldiers[i] *= -1;
-          ea.addEdge(_source, i, soldiers[i]);
-      }
-    }
-  
-  long flow = push_relabel_max_flow(G, _source, sink);
-  
-  if(flow == demand) cout << "yes\n";
-  else cout << "no\n";
-  
+  if(boost::push_relabel_max_flow(G, source, sink) == demand) std::cout << "yes\n";
+  else std::cout << "no\n";
 }
 
+
 int main(int argc, const char *argv[]){
-  ios_base::sync_with_stdio(false);
-  cin.tie(0); cout.tie(0);
-  
-  int t; cin >> t;
+  std::ios_base::sync_with_stdio(false);
+  fp.tie(0);
+  int t; fp >> t;
   while(t--) testcase();
+  return 0;
 }
